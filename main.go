@@ -7,59 +7,76 @@ import (
 )
 
 func main() {
-	// git configからユーザ名を取得します。
+	userName := getGitUserName()
+	branchName := createBranchName(userName)
+
+	if !branchExists(branchName) {
+		createAndPushNewBranch(branchName)
+	} else {
+		checkoutBranch(branchName)
+	}
+
+	commitAndPushChanges()
+
+	pullAllBranches()
+}
+
+func getGitUserName() string {
 	userName, err := executeCommand("git", "config", "--get", "user.name")
 	if err != nil {
 		log.Fatal(err)
 	}
+	return strings.TrimSpace(userName)
+}
 
-	// 改行を削除し、ブランチ名を作成します。
-	branchName := strings.TrimSpace(userName) + "_branch"
+func createBranchName(userName string) string {
+	return userName + "_branch"
+}
 
-	// ブランチが存在するか確認します。
-	_, err = executeCommand("git", "rev-parse", "--verify", branchName)
+func branchExists(branchName string) bool {
+	_, err := executeCommand("git", "rev-parse", "--verify", branchName)
+	return err == nil
+}
+
+func createAndPushNewBranch(branchName string) {
+	_, err := executeCommand("git", "checkout", "-b", branchName)
 	if err != nil {
-		// ブランチが存在しない場合、新しいブランチを作成します。
-		_, err = executeCommand("git", "checkout", "-b", branchName)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		log.Printf("Created new branch: %s\n", branchName)
-
-		// 新しいブランチをリモートにプッシュします。
-		_, err = executeCommand("git", "push", "-u", "origin", branchName)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		log.Printf("Pushed new branch: %s to remote\n", branchName)
-	} else {
-		// 現在のブランチを取得します。
-		currentBranch, err := executeCommand("git", "rev-parse", "--abbrev-ref", "HEAD")
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		// 現在のブランチがユーザ名のブランチでなければ、ユーザ名のブランチにチェックアウトします。
-		if strings.TrimSpace(currentBranch) != branchName {
-			_, err = executeCommand("git", "checkout", branchName)
-			if err != nil {
-				log.Fatal(err)
-			} else {
-				log.Printf("Checked out to branch: %s\n", branchName)
-			}
-		}
+		log.Fatal(err)
 	}
 
-	// git statusコマンドを実行します。
+	log.Printf("Created new branch: %s\n", branchName)
+
+	_, err = executeCommand("git", "push", "-u", "origin", branchName)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	log.Printf("Pushed new branch: %s to remote\n", branchName)
+}
+
+func checkoutBranch(branchName string) {
+	currentBranch, err := executeCommand("git", "rev-parse", "--abbrev-ref", "HEAD")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if strings.TrimSpace(currentBranch) != branchName {
+		_, err = executeCommand("git", "checkout", branchName)
+		if err != nil {
+			log.Fatal(err)
+		} else {
+			log.Printf("Checked out to branch: %s\n", branchName)
+		}
+	}
+}
+
+func commitAndPushChanges() {
 	cmd := exec.Command("git", "status", "--porcelain")
 	out, err := cmd.Output()
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	// 変更がある場合、それをコミットしてプッシュします。
 	if len(strings.TrimSpace(string(out))) > 0 {
 		executeCommand("git", "add", "-A")
 		executeCommand("git", "commit", "-m", "auto commit")
@@ -67,34 +84,45 @@ func main() {
 	} else {
 		log.Println("No changes to commit")
 	}
-
-	// 全てのブランチでgit pullを実行します。
-	pullAllBranches()
 }
 
+// ... The rest of the code
+
 func pullAllBranches() {
-	// 現在のブランチを取得します。
+	currentBranch := getCurrentBranch()
+
+	branches := getAllBranches()
+
+	fetchUpdatesForBranches(branches)
+
+	returnToOriginalBranch(currentBranch)
+}
+
+func getCurrentBranch() string {
 	currentBranch, err := executeCommand("git", "rev-parse", "--abbrev-ref", "HEAD")
 	if err != nil {
 		log.Fatal(err)
 	}
+	return strings.TrimSpace(currentBranch)
+}
 
-	// すべてのブランチ名を取得します。
+func getAllBranches() []string {
 	branchList, err := executeCommand("git", "branch", "--all")
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	branches := strings.Split(strings.TrimSpace(branchList), "\n")
+	return strings.Split(strings.TrimSpace(branchList), "\n")
+}
 
-	// 各ブランチでgit fetchを実行します。
+func fetchUpdatesForBranches(branches []string) {
 	for _, branch := range branches {
 		branch = strings.TrimPrefix(branch, "* ")
 		branch = strings.TrimSpace(branch)
 
 		log.Printf("Checking out branch: %s\n", branch)
 
-		_, err = executeCommand("git", "checkout", branch)
+		_, err := executeCommand("git", "checkout", branch)
 		if err != nil {
 			log.Println(err)
 			continue
@@ -110,15 +138,16 @@ func pullAllBranches() {
 
 		log.Printf("Successfully fetched updates for branch: %s\n", branch)
 	}
+}
 
-	// 元のブランチに戻します。
-	log.Printf("Returning to original branch: %s\n", strings.TrimSpace(currentBranch))
+func returnToOriginalBranch(currentBranch string) {
+	log.Printf("Returning to original branch: %s\n", currentBranch)
 
-	_, err = executeCommand("git", "checkout", strings.TrimSpace(currentBranch))
+	_, err := executeCommand("git", "checkout", currentBranch)
 	if err != nil {
 		log.Fatal(err)
 	} else {
-		log.Printf("Successfully returned to original branch: %s\n", strings.TrimSpace(currentBranch))
+		log.Printf("Successfully returned to original branch: %s\n", currentBranch)
 	}
 }
 
@@ -128,11 +157,10 @@ func executeCommand(name string, arg ...string) (string, error) {
 	output := string(out)
 
 	if err != nil {
-		// Here we can classify errors and decide what to do with them
 		if exitError, ok := err.(*exec.ExitError); ok {
 			exitCode := exitError.ExitCode()
 			switch exitCode {
-			case 128: // Git exit code for "fatal: Not a git repository"
+			case 128:
 				log.Printf("Git command failed with exit code 128, not a git repository. Output was:\n%s", output)
 			default:
 				log.Printf("Git command failed with exit code %d. Output was:\n%s", exitCode, output)
