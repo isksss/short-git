@@ -124,6 +124,23 @@ func pullAllBranches() {
 
 func executeCommand(name string, arg ...string) (string, error) {
 	cmd := exec.Command(name, arg...)
-	out, err := cmd.Output()
-	return string(out), err
+	out, err := cmd.CombinedOutput() // Standard output and standard error are combined
+	output := string(out)
+
+	if err != nil {
+		// Here we can classify errors and decide what to do with them
+		if exitError, ok := err.(*exec.ExitError); ok {
+			exitCode := exitError.ExitCode()
+			switch exitCode {
+			case 128: // Git exit code for "fatal: Not a git repository"
+				log.Printf("Git command failed with exit code 128, not a git repository. Output was:\n%s", output)
+			default:
+				log.Printf("Git command failed with exit code %d. Output was:\n%s", exitCode, output)
+			}
+		} else {
+			log.Printf("Failed to execute command: %v", err)
+		}
+	}
+
+	return output, err
 }
