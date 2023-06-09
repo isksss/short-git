@@ -34,6 +34,22 @@ func main() {
 		}
 
 		log.Printf("Pushed new branch: %s to remote\n", branchName)
+	} else {
+		// 現在のブランチを取得します。
+		currentBranch, err := executeCommand("git", "rev-parse", "--abbrev-ref", "HEAD")
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		// 現在のブランチがユーザ名のブランチでなければ、ユーザ名のブランチにチェックアウトします。
+		if strings.TrimSpace(currentBranch) != branchName {
+			_, err = executeCommand("git", "checkout", branchName)
+			if err != nil {
+				log.Fatal(err)
+			} else {
+				log.Printf("Checked out to branch: %s\n", branchName)
+			}
+		}
 	}
 
 	// git statusコマンドを実行します。
