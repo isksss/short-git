@@ -57,6 +57,12 @@ func main() {
 }
 
 func pullAllBranches() {
+	// 現在のブランチを取得します。
+	currentBranch, err := executeCommand("git", "rev-parse", "--abbrev-ref", "HEAD")
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	// すべてのブランチ名を取得します。
 	branchList, err := executeCommand("git", "branch", "--all")
 	if err != nil {
@@ -65,7 +71,7 @@ func pullAllBranches() {
 
 	branches := strings.Split(strings.TrimSpace(branchList), "\n")
 
-	// 各ブランチでgit pullを実行します。
+	// 各ブランチでgit fetchを実行します。
 	for _, branch := range branches {
 		branch = strings.TrimPrefix(branch, "* ")
 		branch = strings.TrimSpace(branch)
@@ -76,10 +82,16 @@ func pullAllBranches() {
 			continue
 		}
 
-		_, err = executeCommand("git", "pull")
+		_, err = executeCommand("git", "fetch")
 		if err != nil {
 			log.Println(err)
 		}
+	}
+
+	// 元のブランチに戻します。
+	_, err = executeCommand("git", "checkout", strings.TrimSpace(currentBranch))
+	if err != nil {
+		log.Fatal(err)
 	}
 }
 
