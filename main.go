@@ -1,7 +1,10 @@
 package main
 
 import (
+	"bufio"
+	"fmt"
 	"log"
+	"os"
 	"os/exec"
 	"strings"
 )
@@ -19,6 +22,8 @@ func main() {
 	commitAndPushChanges()
 
 	pullAllBranches()
+
+	mergeIfRequired()
 }
 
 func getGitUserName() string {
@@ -150,7 +155,40 @@ func returnToOriginalBranch(currentBranch string) {
 		log.Printf("Successfully returned to original branch: %s\n", currentBranch)
 	}
 }
+func mergeIfRequired() {
+	fetchOriginMain()
+	conflictExists := checkForConflict()
+	if conflictExists {
+		fmt.Println("There are conflicts with the origin/main branch. Would you like to merge? (Y/N)")
+		reader := bufio.NewReader(os.Stdin)
+		answer, _ := reader.ReadString('\n')
+		answer = strings.TrimSpace(strings.ToUpper(answer))
+		if answer == "Y" {
+			mergeWithMain()
+		}
+	}
+}
+func fetchOriginMain() {
+	_, err := executeCommand("git", "fetch", "origin", "main")
+	if err != nil {
+		log.Fatal(err)
+	}
+}
 
+func checkForConflict() bool {
+	_, err := executeCommand("git", "diff", "--name-only", "origin/main")
+	if err != nil {
+		return true
+	}
+	return false
+}
+
+func mergeWithMain() {
+	_, err := executeCommand("git", "merge", "origin/main")
+	if err != nil {
+		log.Fatal(err)
+	}
+}
 func executeCommand(name string, arg ...string) (string, error) {
 	cmd := exec.Command(name, arg...)
 	out, err := cmd.CombinedOutput() // Standard output and standard error are combined
