@@ -91,8 +91,6 @@ func commitAndPushChanges() {
 	}
 }
 
-// ... The rest of the code
-
 func pullAllBranches() {
 	currentBranch := getCurrentBranch()
 
