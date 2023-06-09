@@ -76,22 +76,33 @@ func pullAllBranches() {
 		branch = strings.TrimPrefix(branch, "* ")
 		branch = strings.TrimSpace(branch)
 
+		log.Printf("Checking out branch: %s\n", branch)
+
 		_, err = executeCommand("git", "checkout", branch)
 		if err != nil {
 			log.Println(err)
 			continue
 		}
 
+		log.Printf("Fetching updates for branch: %s\n", branch)
+
 		_, err = executeCommand("git", "fetch")
 		if err != nil {
 			log.Println(err)
+			continue
 		}
+
+		log.Printf("Successfully fetched updates for branch: %s\n", branch)
 	}
 
 	// 元のブランチに戻します。
+	log.Printf("Returning to original branch: %s\n", strings.TrimSpace(currentBranch))
+
 	_, err = executeCommand("git", "checkout", strings.TrimSpace(currentBranch))
 	if err != nil {
 		log.Fatal(err)
+	} else {
+		log.Printf("Successfully returned to original branch: %s\n", strings.TrimSpace(currentBranch))
 	}
 }
 
